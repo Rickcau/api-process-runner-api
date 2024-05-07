@@ -1,6 +1,7 @@
 ﻿using api_process_runner_api.Models.Reporting;
 using api_process_runner_api.Util;
 using Azure.Storage.Blobs;
+using FileHelpers;
 
 namespace api_process_runner_api.Helpers.Reporting
 {
@@ -46,18 +47,22 @@ namespace api_process_runner_api.Helpers.Reporting
         {
             string csvFilePath = $@"{Constants.LocalFilePath}\CSVResults\VerificationConclusionResults_{DateTime.Now:yyyyMMdd}_{Guid.NewGuid().ToString().Substring(0, 8)}.csv";
 
-            using (StreamWriter writer = new StreamWriter(csvFilePath))
-            {
-                if (!_headercreated)
-                {
-                    writer.WriteLine($"PersonID,ActivityRelatedTo,FormOfAuthentication,PhoneNumber,VerificationsCompleted");
-                    _headercreated = true;
-                }
-                foreach (var item in _verificationConclusionResults)
-                {
-                    writer.WriteLine($"{item.PersonID},{item.ActivityRelatedTo},{item.FormOfAuthentication},{item.PhoneNumber},{item.VerificationsCompleted}");
-                }
-            }
+            var fileEngine = new FileHelperEngine<VerificationConclusion>();
+            fileEngine.HeaderText = fileEngine.GetFileHeader();
+            fileEngine.WriteFile(csvFilePath, _verificationConclusionResults);
+
+            //using (StreamWriter writer = new StreamWriter(csvFilePath))
+            //{
+            //    if (!_headercreated)
+            //    {
+            //        writer.WriteLine($"PersonID,ActivityRelatedTo,FormOfAuthentication,PhoneNumber,VerificationsCompleted");
+            //        _headercreated = true;
+            //    }
+            //    foreach (var item in _verificationConclusionResults)
+            //    {
+            //        writer.WriteLine($"{item.PersonID},{item.ActivityRelatedTo},{item.FormOfAuthentication},{item.PhoneNumber},{item.VerificationsCompleted}");
+            //    }
+            //}
         }
 
         private void WriteToAzureBlob()
@@ -80,19 +85,23 @@ namespace api_process_runner_api.Helpers.Reporting
 
             BlobClient blobClient = containerClient.GetBlobClient(fileName);
 
+            var fileEngine = new FileHelperEngine<VerificationConclusion>();
+            fileEngine.HeaderText = fileEngine.GetFileHeader();
+
             using (MemoryStream memoryStream = new MemoryStream())
             {
                 using (StreamWriter writer = new StreamWriter(memoryStream))
                 {
-                    if (!_headercreated)
-                    {
-                        writer.WriteLine($"PersonID,ActivityRelatedTo,FormOfAuthentication,PhoneNumber,VerificationsCompleted");
-                        _headercreated = true;
-                    }
-                    foreach (var item in _verificationConclusionResults)
-                    {
-                        writer.WriteLine($"{item.PersonID},{item.ActivityRelatedTo},{item.FormOfAuthentication},{item.PhoneNumber},{item.VerificationsCompleted}");
-                    }
+                    fileEngine.WriteStream(writer, _verificationConclusionResults);
+                    //if (!_headercreated)
+                    //{
+                    //    writer.WriteLine($"PersonID,ActivityRelatedTo,FormOfAuthentication,PhoneNumber,VerificationsCompleted");
+                    //    _headercreated = true;
+                    //}
+                    //foreach (var item in _verificationConclusionResults)
+                    //{
+                    //    writer.WriteLine($"{item.PersonID},{item.ActivityRelatedTo},{item.FormOfAuthentication},{item.PhoneNumber},{item.VerificationsCompleted}");
+                    //}
 
                     writer.Flush();
                     memoryStream.Position = 0;

@@ -1,5 +1,8 @@
-﻿namespace api_process_runner_api.Models.Reporting
+﻿using FileHelpers;
+
+namespace api_process_runner_api.Models.Reporting
 {
+    [DelimitedRecord(",")]
     public class VerificationConclusion
     {
         public string? PersonID { get; set; }

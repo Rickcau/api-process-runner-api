@@ -1,8 +1,13 @@
 using api_process_runner_api.Helpers;
 using api_process_runner_api.Models;
+using api_process_runner_api.Tests;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Routing.Constraints;
 using Microsoft.SemanticKernel;
+
+Tester.TestCSVManagers("test logid");
+
+
 
 var builder = WebApplication.CreateBuilder(args);
 
