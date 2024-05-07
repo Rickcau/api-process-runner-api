@@ -49,11 +49,8 @@ namespace api_process_runner_api.Util
             #region Step 1: Eppic Check Against Hospital DB - no need to run step 1
             StepLogger stepLogger = new StepLogger();
             // var eppicStepResultsRecord = new EppicStepResults();
-            var eppicStepResultRecord = new EppicStepResults
-            {
-                LogID = _stepslogfile.FileName,
-                LogDate = DateTime.Today.ToString("yyyy-MM-dd"),
-            };
+
+
             if (Globals.inputEppicRecordsInHospitalDB != null && (Globals.inputEppicRecordsInHospitalDB.Count() > 0))
             {
                 // Let's add the items that have a match in Hospital DB to the Log Collection
@@ -62,7 +59,14 @@ namespace api_process_runner_api.Util
                 {
                     // TBD Needs to be debugged it's printing out like 20 items when there are only 5
                     stepLogger.AddItem(record, "Step 1 - Eppic Records in Hospital List", "PASS/Stop do not go to next step");
+                    var eppicStepResultRecord = new EppicStepResults
+                    {
+                        LogID = _stepslogfile.FileName,
+                        LogDate = DateTime.Today.ToString("yyyy-MM-dd"),
+                    };
+                    eppicStepResultRecord.LogID = _stepslogfile.FileName;
                     eppicStepResultRecord.PersonID = record.PersonID;
+                    eppicStepResultRecord.MarkedAsFraud = false;
                     eppicStepResultRecord.PhoneNumber = record.Phone_Number;
                     eppicStepResultRecord.AddressLine1 = record.AddressLine1;
                     eppicStepResultRecord.AddressLine2 = record.AddressLine2;
@@ -86,7 +90,13 @@ namespace api_process_runner_api.Util
                 {
                     // TBD Needs to be debugged it's printing out like 20 items when there are only 5
                     stepLogger.AddItem(record, "Step 1 - Eppic Records Not in Hospital List", "FAIL Go to next Step");
+                    var eppicStepResultRecord = new EppicStepResults
+                    {
+                        LogID = _stepslogfile.FileName,
+                        LogDate = DateTime.Today.ToString("yyyy-MM-dd"),
+                    };
                     eppicStepResultRecord.PersonID = record.PersonID;
+                    eppicStepResultRecord.MarkedAsFraud = false;
                     eppicStepResultRecord.PhoneNumber = record.Phone_Number;
                     eppicStepResultRecord.AddressLine1 = record.AddressLine1;
                     eppicStepResultRecord.AddressLine2 = record.AddressLine2;
@@ -118,7 +128,13 @@ namespace api_process_runner_api.Util
                 foreach (var record in eppicRecordsInGiatDB)
                 {
                     stepLogger.AddItem(record, "Step 2 - Eppic Records in Giact DB", "Match/Contine to step 3");
+                    var eppicStepResultRecord = new EppicStepResults
+                    {
+                        LogID = _stepslogfile.FileName,
+                        LogDate = DateTime.Today.ToString("yyyy-MM-dd"),
+                    };
                     eppicStepResultRecord.PersonID = record.PersonID;
+                    eppicStepResultRecord.MarkedAsFraud = false;
                     eppicStepResultRecord.PhoneNumber = record.Phone_Number;
                     eppicStepResultRecord.AddressLine1 = record.AddressLine1;
                     eppicStepResultRecord.AddressLine2 = record.AddressLine2;
@@ -142,7 +158,13 @@ namespace api_process_runner_api.Util
                 foreach (var record in eppicRecordsNotInGiactDB)
                 {
                     stepLogger.AddItem(record, "Step 2 - Eppic Records Not in Giact DB", "Denied, marked as Fraud no need to process");
+                    var eppicStepResultRecord = new EppicStepResults
+                    {
+                        LogID = _stepslogfile.FileName,
+                        LogDate = DateTime.Today.ToString("yyyy-MM-dd"),
+                    };
                     eppicStepResultRecord.PersonID = record.PersonID;
+                    eppicStepResultRecord.MarkedAsFraud = true;
                     eppicStepResultRecord.PhoneNumber = record.Phone_Number;
                     eppicStepResultRecord.AddressLine1 = record.AddressLine1;
                     eppicStepResultRecord.AddressLine2 = record.AddressLine2;
@@ -168,9 +190,7 @@ namespace api_process_runner_api.Util
             // Let's run the step 3 verification
 
             CallLogChecker callLogChecker = new CallLogChecker();
-            var fraudConclusionResultRecord = new FraudConclusion();
-            var actionConclusionResultRecord = new ActionConclusion();
-            var verificationConclusionResultRecord = new VerificationConclusion(); 
+            
 
             // We need to loop through all the items that have a match in Giact DB for step 3 now
             // This logic could be moved into a function/method to simplify this section of code.
@@ -183,6 +203,7 @@ namespace api_process_runner_api.Util
                     // get a ref to the sibeldataRecords first
                     //var siebeldataRecords = _datahelper.SiebelDataRecords;
                     var recordswithCallNotes = datahelper.SiebelDataParser.FindAllSiebelCallNotesByPersonID(record.PersonID ?? "");
+
                     var verificationsCompletedJson = await callLogChecker.CheckVerificationIntentAsync(_kernel, recordswithCallNotes?.FirstOrDefault()?.PersonID ?? "", recordswithCallNotes?.FirstOrDefault()?.CallNotes ?? "");
                     // JsonSerrializer can thow an exception so really need a try/catch
                     VerificationCompleted? verificationcompleted = JsonSerializer.Deserialize<VerificationCompleted>(verificationsCompletedJson);
@@ -195,7 +216,7 @@ namespace api_process_runner_api.Util
 
                     var verificationConclusionJson = await callLogChecker.CheckVerificationIntentAsync(_kernel, recordswithCallNotes?.FirstOrDefault()?.PersonID ?? "", recordswithCallNotes?.FirstOrDefault()?.CallNotes ?? "");
                     // JsonSerrializer can thow an exception so really need a try/catch
-                    VerificationConclusion? verificationConclusion = JsonSerializer.Deserialize<VerificationConclusion>(fraudConclusionJson);
+                    VerificationConclusion? verificationConclusion = JsonSerializer.Deserialize<VerificationConclusion>(verificationConclusionJson);
 
                     var actionConclusionJson = await callLogChecker.CheckActionConclusionAsync(_kernel, recordswithCallNotes?.FirstOrDefault()?.PersonID ?? "", recordswithCallNotes?.FirstOrDefault()?.CallNotes ?? "");
                     // JsonSerrializer can thow an exception so really need a try/catch
@@ -212,7 +233,13 @@ namespace api_process_runner_api.Util
                         // TBD needs to be looked at on Monday
                               
                         stepLogger.AddItem(record, "Step 3 - Eppic Record Passed Verification Check", "PASS Verification");
+                        var eppicStepResultRecord = new EppicStepResults
+                        {
+                            LogID = _stepslogfile.FileName,
+                            LogDate = DateTime.Today.ToString("yyyy-MM-dd"),
+                        };
                         eppicStepResultRecord.PersonID = record.PersonID;
+                        eppicStepResultRecord.MarkedAsFraud = false;
                         eppicStepResultRecord.PhoneNumber = record.Phone_Number;
                         eppicStepResultRecord.AddressLine1 = record.AddressLine1;
                         eppicStepResultRecord.AddressLine2 = record.AddressLine2;
@@ -225,7 +252,9 @@ namespace api_process_runner_api.Util
                         eppicStepResultRecord.Step3aPassedOTPPhoneGiact = false;
                         eppicStepResultRecord.LastStepCompleted = "Step3";
                         eppicStepResultRecord.Status = "Eppic Record Passed Verification Check ";
-
+                        var fraudConclusionResultRecord = new FraudConclusion();
+                        var actionConclusionResultRecord = new ActionConclusion();
+                        var verificationConclusionResultRecord = new VerificationConclusion();
                         // Call to CSV Manager to log the data to the collection
                         fraudConclusionResultRecord.PersonID = record.PersonID;
                         fraudConclusionResultRecord.FraudConclusionNote = fraudConclusion?.FraudConclusionNote;
@@ -362,7 +391,13 @@ namespace api_process_runner_api.Util
                     {
                         stepLogger.AddItem(record, "Step 3 - Verifications were not complete based on SIEBEL call notes.", "FAIL - fraudelant request");
                         // Call to CSV Manager to log the data to the collection
+                        var eppicStepResultRecord = new EppicStepResults
+                        {
+                            LogID = _stepslogfile.FileName,
+                            LogDate = DateTime.Today.ToString("yyyy-MM-dd"),
+                        };
                         eppicStepResultRecord.PersonID = record.PersonID;
+                        eppicStepResultRecord.MarkedAsFraud = true;
                         eppicStepResultRecord.PhoneNumber = record.Phone_Number;
                         eppicStepResultRecord.AddressLine1 = record.AddressLine1;
                         eppicStepResultRecord.AddressLine2 = record.AddressLine2;
@@ -375,7 +410,9 @@ namespace api_process_runner_api.Util
                         eppicStepResultRecord.Step3aPassedOTPPhoneGiact = false;
                         eppicStepResultRecord.LastStepCompleted = "Step3";
                         eppicStepResultRecord.Status = "Eppic Record Verifications were not complete based on SIEBEL call notes. FAIL - fraudelant request";
-
+                        var fraudConclusionResultRecord = new FraudConclusion();
+                        var actionConclusionResultRecord = new ActionConclusion();
+                        var verificationConclusionResultRecord = new VerificationConclusion();
                         fraudConclusionResultRecord.PersonID = record.PersonID;
                         fraudConclusionResultRecord.FraudConclusionNote = fraudConclusion?.FraudConclusionNote;
                         fraudConclusionResultRecord.FraudConclusionType = fraudConclusion?.FraudConclusionType;

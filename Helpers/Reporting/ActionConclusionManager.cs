@@ -18,28 +18,25 @@ namespace api_process_runner_api.Helpers.Reporting
             //Important Note: Add new item as there can be multiple items ins SEIBEL call notes so we need the results for each item.
 
 
-           _actionConclusionResults.Add(newItem);
-           var existingItem = _actionConclusionResults.FirstOrDefault(item => item.PersonID == newItem.PersonID);
-
-            if (existingItem == null)
-            {
-                // Add new item
-                _actionConclusionResults.Add(newItem);
-            }
-            else
-            {
-                // Update existing item
-                existingItem.CallerAuthenticated = newItem.CallerAuthenticated;
-                existingItem.FormOfAuthentication = newItem.FormOfAuthentication;
-                existingItem.ThirdPartyInvolved = newItem.ThirdPartyInvolved;
-                existingItem.WasCallTransferred = newItem.WasCallTransferred;
-                existingItem.PhoneUpdateFrom = newItem.PhoneUpdateFrom;
-                existingItem.PhoneUpdateTo = newItem.PhoneUpdateTo;
-                existingItem.PhoneChanged = newItem.PhoneChanged;
-                existingItem.AddressChanged = newItem.AddressChanged;
-                existingItem.AddressUpdateFrom = newItem.AddressUpdateFrom;
-                existingItem.AddressUpdateTo = newItem.AddressUpdateTo;
-            }
+            //if (existingItem == null)
+            //{
+            //    // Add new item
+              _actionConclusionResults.Add(newItem);
+            //}
+            //else
+            //{
+            //    // Update existing item
+            //    existingItem.CallerAuthenticated = newItem.CallerAuthenticated;
+            //    existingItem.FormOfAuthentication = newItem.FormOfAuthentication;
+            //    existingItem.ThirdPartyInvolved = newItem.ThirdPartyInvolved;
+            //    existingItem.WasCallTransferred = newItem.WasCallTransferred;
+            //    existingItem.PhoneUpdateFrom = newItem.PhoneUpdateFrom;
+            //    existingItem.PhoneUpdateTo = newItem.PhoneUpdateTo;
+            //    existingItem.PhoneChanged = newItem.PhoneChanged;
+            //    existingItem.AddressChanged = newItem.AddressChanged;
+            //    existingItem.AddressUpdateFrom = newItem.AddressUpdateFrom;
+            //    existingItem.AddressUpdateTo = newItem.AddressUpdateTo;
+            //}
         }
 
         public void WriteToCsv(bool useLocalFiles)
