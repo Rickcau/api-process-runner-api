@@ -17,8 +17,14 @@ namespace api_process_runner_api.Util
         private string _promptVerificationConclusion = @"PersonID: {{$personid}}
         {{$query}}
 
-         Return the Verification Conclusion of the query. The Verification Conclusion must be in the format of JSON that consists of PersonID, ActivityRelatedTo, FormOfAuthentication, Phone Number properties. The phone number will contain 10 digits and may or may not have dashes. If there are multiple numbers listed, identify the most recent, updated phone number. If there is no phone number, return 'no phone number'.
-         If ActivityRelatedTo is not 'Inbound Call' VerificationCompleted should be set to 'No'.  ActivityRelatedTo must be set to 'Inbound Call' and FormOfAuthentication must be 'KBA' or 'ID Verification' or 'One Time Passcode' before VerficationsCompleted can be set to 'Yes', otherwise VerficationsCompleted must be set to 'No'. The JSON format should be:
+        Return the Verification Conclusion of the query.
+        The Verification Conclusion must be in the format of JSON that consists of PersonID, ActivityRelatedTo, FormOfAuthentication, Phone Number properties.
+        The phone number will contain 10 digits and may or may not have dashes.
+        If there are multiple numbers listed, identify the most recent, updated phone number.
+        If there is no phone number, return 'no phone number'.
+        If ActivityRelatedTo is not 'Inbound Call' VerificationCompleted should be set to 'No'.
+        ActivityRelatedTo must be set to 'Inbound Call' and FormOfAuthentication must be 'KBA' or 'ID Verification' or 'One Time Passcode' before VerficationsCompleted can be set to 'Yes'
+            , otherwise VerficationsCompleted must be set to 'No'. The JSON format should be:
         [JSON]
                {
                   'PersonID': '12345',
@@ -63,8 +69,17 @@ namespace api_process_runner_api.Util
         PassedStep3a: {{$passedstep3a}}
         {{$query}}
 
-        Return the Fraud Conclusion intent of the query. The Fraud Conclusion must be in the format of JSON that consists of FraudConclusionNotes, FraudConclusionType, Recommendation properties. The FraudConclusionNotes should a short summary based on your review of the query.  The FraudConclusionType should be either 'No Fraud Detected' or 'Possible Account Takeover'.  The Recommendation should be your recommendations for futher action based on your conclusions. 
-        If InStep3a is false, then PassedStep3a has no impact on your logic.  If InStep3a is true and PassedStep3a is true, this means the the PersonID has passed all verificaiton steps and the form of authentication was 'One Time Passcode' and it should be noted in the FraudCOnclusionNotes that this record passed Step3a and therefore should not be considered fraud. If based on the settings of InStep3a and PassedStep3a it's concluded this record is NOT fraud
+        Return the Fraud Conclusion intent of the query.
+        The Fraud Conclusion must be in the format of JSON that consists of FraudConclusionNotes, FraudConclusionType, Recommendation properties.
+        The FraudConclusionNotes should a short summary based on your review of the query.
+        The FraudConclusionType should be either 'No Fraud Detected' or 'Possible Account Takeover'.
+        The Recommendation should be your recommendations for futher action based on your conclusions. 
+        If InStep3a is false, then PassedStep3a has no impact on your logic.
+        If InStep3a is true and PassedStep3a is true, 
+            this means the the PersonID has passed all verificaiton steps and the form of authentication was 'One Time Passcode' 
+            and it should be noted in the FraudCOnclusionNotes that this record passed Step3a 
+            and therefore should not be considered fraud.
+        If based on the settings of InStep3a and PassedStep3a it's concluded this record is NOT fraud
         then this should be reflected in the Recommendation, FraudConclusionNotes and FraudConclusionType.
         The JSON format should be:
         [JSON]
@@ -89,7 +104,10 @@ namespace api_process_runner_api.Util
         private string _promptActionConclusion = @"PersonID: {{$personid}}
         {{$query}}
 
-        Return the Action Conclusion intent of the query. The Acton Conclusion must be in the format of JSON that consists of PersonID, CallerAuthenticated, FormOfAuthentication, ThirdPartyInvolved, WasCallTransferred, PhoneUpdateFrom, PhoneUpdatedTo, PhoneChanged, AddressChanged, AddressUpdateFrom, AddressUpdateTo properties. The JSON format should be:
+        Return the Action Conclusion intent of the query.
+        The Acton Conclusion must be in the format of JSON that consists of 
+            PersonID, CallerAuthenticated, FormOfAuthentication, ThirdPartyInvolved, WasCallTransferred, PhoneUpdateFrom, PhoneUpdatedTo, PhoneChanged, AddressChanged, AddressUpdateFrom, AddressUpdateTo properties.
+        The JSON format should be:
 
         [JSON]
               {
@@ -137,6 +155,9 @@ namespace api_process_runner_api.Util
 
             KernelArguments arguments2 = new(executionSettings) { { "query", query }, { "personid", personid } };
             string result = "";
+            timerCallback = new TimerCallback(OnTimerElapsed);
+            var timer = new Timer(timerCallback, null, 10 * 1000, 10 * 1000);
+            var startTime = DateTime.UtcNow;
             try
             {
                 // KernelArguments arguments = new(new OpenAIPromptExecutionSettings { ResponseFormat = "json_object" }) { { "query", query } };
@@ -146,7 +167,13 @@ namespace api_process_runner_api.Util
             }
             catch (Exception ex)
             {
+                timer.Dispose();
                 Console.WriteLine(ex);
+            }
+            finally
+            {
+                timer.Dispose();
+                Console.WriteLine($"Duration of Semantic Kernel for CheckVerificationIntentAsync: { DateTime.UtcNow - startTime } ");
             }
             return result ?? "";
         }
@@ -162,6 +189,9 @@ namespace api_process_runner_api.Util
 
             KernelArguments arguments2 = new(executionSettings) { { "query", query }, { "personid", personid }, { "instep3a", instep3a }, { "passedstep3a", passedstep3a } };
             string result = "";
+            timerCallback = new TimerCallback(OnTimerElapsed);
+            var timer = new Timer(timerCallback, null, 10 * 1000, 10 * 1000);
+            var startTime = DateTime.UtcNow;
             try
             {
                 // KernelArguments arguments = new(new OpenAIPromptExecutionSettings { ResponseFormat = "json_object" }) { { "query", query } };
@@ -172,6 +202,11 @@ namespace api_process_runner_api.Util
             catch (Exception ex)
             {
                 Console.WriteLine(ex);
+            }
+            finally
+            {
+                timer.Dispose();
+                Console.WriteLine($"Duration of Semantic Kernel for CheckFraudIntentAsync: {DateTime.UtcNow - startTime} ");
             }
             return result ?? "";
         }
@@ -187,6 +222,10 @@ namespace api_process_runner_api.Util
 
             KernelArguments arguments2 = new(executionSettings) { { "query", query }, { "personid", personid } };
             string result = "";
+            timerCallback = new TimerCallback(OnTimerElapsed);
+            var timer = new Timer(timerCallback, null, 10 * 1000, 10 * 1000);
+
+            var startTime = DateTime.UtcNow;
             try
             {
                 // KernelArguments arguments = new(new OpenAIPromptExecutionSettings { ResponseFormat = "json_object" }) { { "query", query } };
@@ -198,7 +237,18 @@ namespace api_process_runner_api.Util
             {
                 Console.WriteLine(ex);
             }
+            finally
+            {
+                timer.Dispose();
+                Console.WriteLine($"Duration of Semantic Kernel for CheckActionConclusionAsync: {DateTime.UtcNow - startTime} ");
+            }
             return result ?? "";
+        }
+
+        static TimerCallback timerCallback;
+        static void OnTimerElapsed(object state)
+        {
+            Console.WriteLine("Still working...");
         }
     }
 }

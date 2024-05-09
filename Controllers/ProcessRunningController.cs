@@ -77,6 +77,7 @@ namespace api_process_runner_api.Controllers
             }
             catch (Exception ex)
             {
+                Console.WriteLine(ex.ToString());
                 return BadRequest($"An error occured: {ex.Message}");
             }
         }
@@ -106,6 +107,7 @@ namespace api_process_runner_api.Controllers
             }
             catch (Exception ex)
             {
+                Console.WriteLine(ex.ToString());
                 return BadRequest($"An error occured: {ex.Message}");
             }
         }

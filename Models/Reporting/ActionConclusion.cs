@@ -14,7 +14,9 @@ namespace api_process_runner_api.Models.Reporting
         public string? PhoneUpdateTo { get; set; }
         public string? PhoneChanged { get; set; }
         public string? AddressChanged { get; set; }
+        [FieldQuoted]
         public string? AddressUpdateFrom { get; set; }
+        [FieldQuoted]
         public string? AddressUpdateTo { get; set; }
     }
 }
