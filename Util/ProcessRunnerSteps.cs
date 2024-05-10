@@ -4,6 +4,7 @@ using api_process_runner_api.Models;
 using api_process_runner_api.Models.Reporting;
 using Microsoft.Extensions.Configuration.UserSecrets;
 using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.ChatCompletion;
 using System;
 using System.Diagnostics;
 using System.Net.Http;
@@ -30,10 +31,11 @@ namespace api_process_runner_api.Util
         public string? MasterStatusCode { get; set; }                    // Pass or Fail
     }
     //  public class ProcessRunnerSteps(EppicRecords eppicrecord, SiebelDataParser siebeldataparser, GiactDataParser giactdataparser, EppicDataParser eppicdataparser)
-    internal class ProcessRunnerSteps(DataHelper datahelper, Kernel kernel, JobStatus jobstatus, StepsLogFile stepslogfile)
+    internal class ProcessRunnerSteps(DataHelper datahelper, Kernel kernel, IChatCompletionService chat, JobStatus jobstatus, StepsLogFile stepslogfile)
     {
         private DataHelper _datahelper = datahelper;
         private Kernel _kernel = kernel;
+        private IChatCompletionService _chat = chat;
         private JobStatus _jobstatus = jobstatus;
         private StepsLogFile _stepslogfile = stepslogfile;
         // Adding Managers for CSV reporting
@@ -212,7 +214,7 @@ namespace api_process_runner_api.Util
                     VerificationCompleted? verificationcompleted = JsonSerializer.Deserialize<VerificationCompleted>(verificationsCompletedJson);
                     
                     // Lets get the Fraud Concluson from AI we need to use a special POCO call to collect those details so we can log it to file.
-                    var fraudConclusionJson = await callLogChecker.CheckFraudIntentAsync(_kernel, recordswithCallNotes?.FirstOrDefault()?.PersonID ?? "", recordswithCallNotes?.FirstOrDefault()?.CallNotes ?? "");
+                    var fraudConclusionJson = await callLogChecker.CheckFraudIntentAsync(_kernel, _chat, recordswithCallNotes?.FirstOrDefault()?.PersonID ?? "", recordswithCallNotes?.FirstOrDefault()?.CallNotes ?? "");
                     // JsonSerrializer can thow an exception so really need a try/catch
                     FraudConclusion? fraudConclusion = JsonSerializer.Deserialize<FraudConclusion>(fraudConclusionJson);
 
@@ -299,7 +301,7 @@ namespace api_process_runner_api.Util
                             {
                                 // We need to call the AI for FraudConclusion one more time because in previous calls the AI does not know if the record passed the 3a check since
                                 // we haven't got here yet.  We need to let the AI that this record has passed or failed Step3a.
-                                var fraudConclusionJson3a = await callLogChecker.CheckFraudIntentAsync(_kernel, recordswithCallNotes?.FirstOrDefault()?.PersonID ?? "", recordswithCallNotes?.FirstOrDefault()?.CallNotes ?? "",true,false);
+                                var fraudConclusionJson3a = await callLogChecker.CheckFraudIntentAsync(_kernel, _chat, recordswithCallNotes?.FirstOrDefault()?.PersonID ?? "", recordswithCallNotes?.FirstOrDefault()?.CallNotes ?? "",true,false);
                                 // JsonSerrializer can thow an exception so really need a try/catch
                                 FraudConclusion? fraudConclusion3a = JsonSerializer.Deserialize<FraudConclusion>(fraudConclusionJson3a);
 
@@ -332,7 +334,7 @@ namespace api_process_runner_api.Util
                             else
                             {
                                 stepLogger.AddItem(record, "Step 3a - OTP Pass ID Verification, phone number matches the phone number in EPPIC or GIACT", "PASS");
-                                var fraudConclusionJson3a = await callLogChecker.CheckFraudIntentAsync(_kernel, recordswithCallNotes?.FirstOrDefault()?.PersonID ?? "", recordswithCallNotes?.FirstOrDefault()?.CallNotes ?? "", true, true);
+                                var fraudConclusionJson3a = await callLogChecker.CheckFraudIntentAsync(_kernel, _chat, recordswithCallNotes?.FirstOrDefault()?.PersonID ?? "", recordswithCallNotes?.FirstOrDefault()?.CallNotes ?? "", true, true);
                                 FraudConclusion? fraudConclusion3a = JsonSerializer.Deserialize<FraudConclusion>(fraudConclusionJson3a);
 
 
