@@ -7,6 +7,7 @@ using api_process_runner_api.Util;
 using Microsoft.Extensions.Configuration.UserSecrets;
 using Microsoft.SemanticKernel;
 using System.Text.Json;
+using Microsoft.SemanticKernel.ChatCompletion;
 
 namespace api_process_runner_api.Tests
 {
@@ -82,13 +83,13 @@ namespace api_process_runner_api.Tests
             return "Finished Testing";
         }
 
-        public static async Task<string> TestAICall(DataHelper dataHelper, Kernel kernel, string siebelrecord)
+        public static async Task<string> TestAICall(DataHelper dataHelper, Kernel kernel, IChatCompletionService chat, string siebelrecord)
         {
             // var result = await TestAICall(dataHelper, kernel, "6488958";
             CallLogChecker callLogChecker = new CallLogChecker();
             var siebeldataRecords = dataHelper.SiebelDataRecords;
             var recordswithCallNotes = dataHelper.SiebelDataParser.FindAllSiebelCallNotesByPersonIDLastFirst(siebelrecord);
-            var fraudConclusionResult = await callLogChecker.CheckFraudIntentAsync(kernel, recordswithCallNotes?.FirstOrDefault()?.PersonID ?? "", recordswithCallNotes?.FirstOrDefault()?.CallNotes ?? "");
+            var fraudConclusionResult = await callLogChecker.CheckFraudIntentAsync(kernel, chat, recordswithCallNotes?.FirstOrDefault()?.PersonID ?? "", recordswithCallNotes?.FirstOrDefault()?.CallNotes ?? "");
             var verificationConclusionResult = await callLogChecker.CheckVerificationIntentAsync(kernel, recordswithCallNotes?.FirstOrDefault()?.PersonID ?? "", recordswithCallNotes?.FirstOrDefault()?.CallNotes ?? "");
             var actionConclusionResult = await callLogChecker.CheckActionConclusionAsync(kernel, recordswithCallNotes?.FirstOrDefault()?.PersonID ?? "", recordswithCallNotes?.FirstOrDefault()?.CallNotes ?? "");
             FraudConclusion? fraudConclustion = JsonSerializer.Deserialize<FraudConclusion>(fraudConclusionResult);

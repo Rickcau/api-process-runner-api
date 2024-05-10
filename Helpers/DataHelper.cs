@@ -3,6 +3,7 @@ using api_process_runner_api.Models;
 using api_process_runner_api.Util;
 using Microsoft.Extensions.Configuration.UserSecrets;
 using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.ChatCompletion;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -28,6 +29,7 @@ namespace api_process_runner_api.Helpers
     {
         private BlobHelper _blobHelper;
         private Kernel _kernel;
+        private IChatCompletionService _chat;
         private bool _usingLocalFiles;
         private UploadedFilesRequest _uploadedFilesRequest;
         private SiebelDataParser _siebelDataParser;
@@ -72,10 +74,11 @@ namespace api_process_runner_api.Helpers
             get { return _giactdataRecords; }
         }
 
-        public DataHelper(UploadedFilesRequest uploadedFilesRequest,string blobconnectionstring, bool usingLocalFiles, Kernel kernel) 
+        public DataHelper(UploadedFilesRequest uploadedFilesRequest,string blobconnectionstring, bool usingLocalFiles, Kernel kernel, IChatCompletionService chat) 
         {
             _usingLocalFiles = usingLocalFiles; 
             _kernel = kernel;
+            _chat = chat;
             _uploadedFilesRequest = uploadedFilesRequest;
             _blobHelper = new BlobHelper()
             {
@@ -337,7 +340,7 @@ namespace api_process_runner_api.Helpers
                 // get a record with callnotes
                 //var recordswithCallNotes = dataHelper.SiebelDataParser.FindAllSiebelCallNotesByPersonID("5094334");
                 var recordswithCallNotes = dataHelper.SiebelDataParser.FindAllSiebelCallNotesByPersonIDLastFirst("6488958");
-                var verificationsCompletedResult1 = await callLogChecker.CheckFraudIntentAsync(_kernel, recordswithCallNotes?.FirstOrDefault()?.PersonID ?? "", recordswithCallNotes?.FirstOrDefault()?.CallNotes ?? "");
+                var verificationsCompletedResult1 = await callLogChecker.CheckFraudIntentAsync(_kernel, _chat, recordswithCallNotes?.FirstOrDefault()?.PersonID ?? "", recordswithCallNotes?.FirstOrDefault()?.CallNotes ?? "");
 
                 var verificationsCompletedResult2 = await callLogChecker.CheckVerificationIntentAsync(_kernel, recordswithCallNotes?.FirstOrDefault()?.PersonID ?? "", recordswithCallNotes?.FirstOrDefault()?.CallNotes ?? "");
                 Console.WriteLine(verificationsCompletedResult2);
