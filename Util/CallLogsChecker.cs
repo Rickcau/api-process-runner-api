@@ -1,4 +1,5 @@
 ﻿using Azure;
+using Azure.AI.OpenAI;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
@@ -148,6 +149,12 @@ namespace api_process_runner_api.Util
                 // KernelArguments arguments = new(new OpenAIPromptExecutionSettings { ResponseFormat = "json_object" }) { { "query", query } };
                 Console.WriteLine("SK ,- CheckVerificationIntent");
                 var response = await kernel.InvokePromptAsync(_promptVerificationConclusion, arguments2);
+                var metadata = response.Metadata;
+                if (metadata != null && metadata.ContainsKey("Usage"))
+                {
+                    var usage = (CompletionsUsage?)metadata["Usage"];
+                    Console.WriteLine($"Token usage. Input tokens: {usage?.PromptTokens}; Output tokens: {usage?.CompletionTokens}");
+                }
                 result = response.GetValue<string>() ?? "";
             }
             catch (Exception ex)
@@ -189,6 +196,8 @@ namespace api_process_runner_api.Util
                     executionSettings);
 
                 string strChatResponse = string.Join(", ", chatResponse.Select(o => o.ToString()));
+
+                // TBD:  Need to extract MetaData to so we can print the token usage.  
 
                 var fraudConclusions = Regex.Matches(strChatResponse, @"(?<=""FraudConclusionType"":\s*"")[^""]+");
 
@@ -244,6 +253,12 @@ namespace api_process_runner_api.Util
                 // KernelArguments arguments = new(new OpenAIPromptExecutionSettings { ResponseFormat = "json_object" }) { { "query", query } };
                 Console.WriteLine("SK ,- CheckActionConclusionIntent");
                 var response = await kernel.InvokePromptAsync(_promptActionConclusion, arguments2);
+                var metadata = response.Metadata;
+                if (metadata != null && metadata.ContainsKey("Usage"))
+                {
+                    var usage = (CompletionsUsage?)metadata["Usage"];
+                    Console.WriteLine($"Token usage. Input tokens: {usage?.PromptTokens}; Output tokens: {usage?.CompletionTokens}");
+                }
                 result = response.ToString() ?? "";
             }
             catch (Exception ex)
