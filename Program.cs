@@ -3,6 +3,7 @@ using api_process_runner_api.Models;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Routing.Constraints;
 using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.ChatCompletion;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,6 +28,9 @@ builder.Services.AddTransient<Kernel>(s =>
     );
     return builder.Build();
 });
+
+builder.Services.AddSingleton<IChatCompletionService>(sp =>
+    sp.GetRequiredService<Kernel>().GetRequiredService<IChatCompletionService>());
 
 builder.Services.AddSingleton<UploadedFilesRequest>(provider =>
 {

@@ -6,6 +6,7 @@ using api_process_runner_api.Util;
 using Microsoft.Extensions.Configuration.UserSecrets;
 using Azure;
 using api_process_runner_api.Tests;
+using Microsoft.SemanticKernel.ChatCompletion;
 
 namespace api_process_runner_api.Controllers
 {
@@ -15,15 +16,17 @@ namespace api_process_runner_api.Controllers
     {
         private readonly ILogger<ProcessRunnerController> _logger;
         private readonly Kernel _kernel;
+        private readonly IChatCompletionService _chat;
         private readonly JobStatus _jobstatus;
         private readonly UploadedFilesRequest? _filesrequest;
         private readonly StepsLogFile _stepslogfile;
 
         private readonly bool _debugging = true;
-        public ProcessRunnerController(ILogger<ProcessRunnerController> logger, Kernel kernel, UploadedFilesRequest uploadedfilesrequest, StepsLogFile stepslogfile, JobStatus jobstatus)
+        public ProcessRunnerController(ILogger<ProcessRunnerController> logger, Kernel kernel, IChatCompletionService chat, UploadedFilesRequest uploadedfilesrequest, StepsLogFile stepslogfile, JobStatus jobstatus)
         {
             _logger = logger;
             _kernel = kernel;
+            _chat = chat;
             _jobstatus = jobstatus;
             _filesrequest = uploadedfilesrequest;
             _stepslogfile = stepslogfile;
@@ -47,7 +50,7 @@ namespace api_process_runner_api.Controllers
                 DataHelper dataHelper;  // TBD I think there is an issue with Step2 building of the IEnumerable it's not finished Step 3
                 
                 if (_filesrequest != null) {
-                    dataHelper = new DataHelper(_filesrequest , _blobConnection, Constants.UseLocalFiles, _kernel);  // Change Constants.UseLocalFiles to false to use Azure Blob Storage
+                    dataHelper = new DataHelper(_filesrequest , _blobConnection, Constants.UseLocalFiles, _kernel, _chat);  // Change Constants.UseLocalFiles to false to use Azure Blob Storage
                     dataHelper?.ClearCollections(); // Clear All collections just to make sure data does not linger across runs.
                 }
                 else
@@ -66,7 +69,7 @@ namespace api_process_runner_api.Controllers
                     //response = await dataHelper.RunTestsOnData(dataHelper);
                     //Console.WriteLine(response);
                     
-                    ProcessRunnerSteps processRunner = new ProcessRunnerSteps(dataHelper, _kernel, _jobstatus, _stepslogfile);
+                    ProcessRunnerSteps processRunner = new ProcessRunnerSteps(dataHelper, _kernel, _chat, _jobstatus, _stepslogfile);
                     _ = processRunner.RunSteps();
 
                     // Comment out the two lines about to not run the tests.

@@ -2,6 +2,7 @@
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 
 
@@ -58,33 +59,38 @@ namespace api_process_runner_api.Util
 
 
 
-        private string _promptFraudConclusion = @"PersonID: {{$personid}}
-        InStep3a: {{$instep3a}}
-        PassedStep3a: {{$passedstep3a}}
-        {{$query}}
-
-        Return the Fraud Conclusion intent of the query. The Fraud Conclusion must be in the format of JSON that consists of FraudConclusionNotes, FraudConclusionType, Recommendation properties. The FraudConclusionNotes should a short summary based on your review of the query.  The FraudConclusionType should be either 'No Fraud Detected' or 'Possible Account Takeover'.  The Recommendation should be your recommendations for futher action based on your conclusions. 
-        If InStep3a is false, then PassedStep3a has no impact on your logic.  If InStep3a is true and PassedStep3a is true, this means the the PersonID has passed all verificaiton steps and the form of authentication was 'One Time Passcode' and it should be noted in the FraudCOnclusionNotes that this record passed Step3a and therefore should not be considered fraud. If based on the settings of InStep3a and PassedStep3a it's concluded this record is NOT fraud
-        then this should be reflected in the Recommendation, FraudConclusionNotes and FraudConclusionType.
-        The JSON format should be:
-        [JSON]
-               {
-                  'PersonID': '12345',
-                  'FraudConclusionNotes': '<conclusion>',
-                  'FraudConclusionType' : 'No Fraud Detected',
-                  'Recommendation': '<recommendation>'
-               }
-        [JSON END]
-
-        [Examples for JSON Output]
-             { 
-             'PersonID':'12345', 
-             'FraudConclusionNotes': 'There are multiple red flags suggesting potential fraud, including changes in contact information, inquiries about card information and transaction history, alert updates indicating possible account takeover',
-             'FraudConclusionType': 'Account Takeover'
-             'Recommendation': 'Further investigation and monitoring of the account are warranted to confirm fraudulent activity.'
-             }
- 
-        Per user query what is the Fraud Conclusion?";
+        private string _promptFraudConclusion = @"InStep3a is {{$instep3a}}
+                PassedStep3a is {{$passedstep3a}}
+                PersonID is {{$personid}}
+                Return the Fraud Conclusion intent of the user query. The Fraud Conclusion must be in the format of JSON that consists of FraudConclusionNotes, FraudConclusionType, Recommendation properties.
+                The FraudConclusionNotes should a short summary based on your review of the query.
+                        The FraudConclusionType should be either 'No Fraud Detected' or 'Possible Account Takeover'.
+                        The Recommendation should be your recommendations for futher action based on your conclusions. 
+                        If InStep3a is false, then PassedStep3a has no impact on your logic.
+                        If InStep3a is true AND PassedStep3a is true, you must conclude that this is NOT fraud.
+                            This means that the PersonID has passed all verification steps and the form of authentication was 'One Time Passcode'
+                            and it should be noted in the FraudConclusionNotes that this record passed Step3a.
+                        Based on the instructions above on how to interpret InStep3a and PassedStep3a values, if you conclude that this record is NOT fraud
+                        then this should be reflected in the Recommendation, FraudConclusionNotes and FraudConclusionType.
+                        The JSON format should be:
+                        [JSON]
+                               {
+                                  'PersonID': '12345',
+                                  'FraudConclusionNotes': '<conclusion>',
+                                  'FraudConclusionType' : 'No Fraud Detected',
+                                  'Recommendation': '<recommendation>'
+                               }
+                        [JSON END]
+                
+                        [Examples for JSON Output]
+                             { 
+                             'PersonID':'12345', 
+                             'FraudConclusionNotes': 'There are multiple red flags suggesting potential fraud, including changes in contact information, inquiries about card information and transaction history, alert updates indicating possible account takeover',
+                             'FraudConclusionType': 'Account Takeover'
+                             'Recommendation': 'Further investigation and monitoring of the account are warranted to confirm fraudulent activity.'
+                             }
+                
+                        Per user query what is the Fraud Conclusion?";
 
         private string _promptActionConclusion = @"PersonID: {{$personid}}
         {{$query}}
@@ -151,28 +157,74 @@ namespace api_process_runner_api.Util
             return result ?? "";
         }
 
-        public async Task<string> CheckFraudIntentAsync(Kernel kernel, string personid, string query,bool instep3a = false,  bool passedstep3a = false)
+        public async Task<string> CheckFraudIntentAsync(Kernel kernel, IChatCompletionService chat, string personid, string query, bool instep3a = false, bool passedstep3a = false)
         {
 #pragma warning disable SKEXP0010
+            string promptFraudConclusion = _promptFraudConclusion;
+            promptFraudConclusion = promptFraudConclusion.Replace("{{$personid}}", personid);
+            promptFraudConclusion = promptFraudConclusion.Replace("{{$instep3a}}", instep3a != null ? instep3a.ToString() : "");
+            promptFraudConclusion = promptFraudConclusion.Replace("{{$passedstep3a}}", passedstep3a != null ? passedstep3a.ToString() : "");
+
+            ChatHistory chatHistory = new ChatHistory();
+            chatHistory.AddSystemMessage(promptFraudConclusion);
+            chatHistory.AddSystemMessage(query);
+            // The quorom patten should avoid needing to use this
+            //chatHistory.AddUserMessage("If PassedStep3a is True and InStep3a is True, the Fraud Conclusion Type Must be 'No Fraud Detected'");
+
 
             var executionSettings = new OpenAIPromptExecutionSettings()
             {
                 ResponseFormat = "json_object", // setting JSON output mode
+                Temperature = .5,
+                // Instruct the model to give us 3 results for the prompt in one call
+                ResultsPerPrompt = 3,
             };
 
-            KernelArguments arguments2 = new(executionSettings) { { "query", query }, { "personid", personid }, { "instep3a", instep3a }, { "passedstep3a", passedstep3a } };
             string result = "";
+
             try
             {
-                // KernelArguments arguments = new(new OpenAIPromptExecutionSettings { ResponseFormat = "json_object" }) { { "query", query } };
-                Console.WriteLine("SK ,- CheckFraudIntent");
-                var response = await kernel.InvokePromptAsync(_promptFraudConclusion, arguments2);
-                result = response.GetValue<string>() ?? "";
+                var chatResponse = await chat.GetChatMessageContentsAsync(
+                    chatHistory,
+                    executionSettings);
+
+                string strChatResponse = string.Join(", ", chatResponse.Select(o => o.ToString()));
+
+                var fraudConclusions = Regex.Matches(strChatResponse, @"(?<=""FraudConclusionType"":\s*"")[^""]+");
+
+                // Count fraud conclusion occurrences
+                var fraudConclusionCounts = new Dictionary<string, int>();
+                foreach (Match fraudConclusion in fraudConclusions)
+                {
+                    var conclusion = fraudConclusion.Value;
+                    if (fraudConclusionCounts.ContainsKey(conclusion))
+                        fraudConclusionCounts[conclusion]++;
+                    else
+                        fraudConclusionCounts[conclusion] = 1;
+                }
+
+                // get the fraud conclusion with the highest occurence
+                var finalFraudConclusionType = fraudConclusionCounts.MaxBy(kvp => kvp.Value).Key;
+
+                // select the result to be the first result which in the chat response which has this fraud conclusion
+                foreach (var response in chatResponse)
+                {
+                    var jsonDocument = JsonDocument.Parse(response.Content).RootElement;
+
+                    string responseFraudConclusionType = jsonDocument.GetProperty("FraudConclusionType").GetString();
+
+                    if (responseFraudConclusionType.Equals(finalFraudConclusionType))
+                    {
+                        result = response.Content;
+                        break;
+                    }
+                }
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex);
+                Console.WriteLine(ex.Message);
             }
+
             return result ?? "";
         }
 
