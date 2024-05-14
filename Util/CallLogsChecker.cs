@@ -18,16 +18,25 @@ namespace api_process_runner_api.Util
 
         private string _promptVerificationConclusion = @"PersonID: {{$personid}}
         {{$query}}
-         Return the Verification Conclusion of the query. The Verification Conclusion must be in the format of JSON that consists of PersonID, ActivityRelatedTo, FormOfAuthentication, Phone Number properties. The phone number will contain 10 digits and may or may not have dashes. If there are multiple numbers listed, identify the most recent, updated phone number. If there is no phone number, return 'no phone number'. If 'Form of Authentication' is 'KBA' there is a 'Reference ID:' and 'PASSED' is found, the VerificationCompleted should be set to 'Yes'
-         If ActivityRelatedTo is not 'Inbound Call' VerificationCompleted should be set to 'No'.  ActivityRelatedTo must be set to 'Inbound Call' and FormOfAuthentication must be 'KBA' or 'ID Verification' or 'One Time Passcode' before VerficationsCompleted can be set to 'Yes', otherwise VerficationsCompleted must be set to 'No'. The JSON format should be:
+         Return the Verification Conclusion of the query, (ignore case making decisions). Use the following steps when evaluating the query.
+         1. Check to see if 'Activities Related To:' is set to 'Inbound Call' if not VerificationCompleted should be set to 'No'  
+         2. Check the 'Form of Authentication' is 'ID Verification' skip to step 7
+         3. Check the 'Form of Authentication' for 'KBA' or 'One time passcode'
+         4. If step 3 is true, check to see if 'Reference ID:' exists and if so, is there a 9 digit value following it, if true set 'RefIdFoundNineOrMore' to 'Yes' otherwise set to 'No'
+         5. Check to see of the word 'Pass' or 'Passed' exists if so set 'PassFound' to 'Yes', otherwise set to 'No'
+         6. If step 4 and 5 are true conditions, set VertificatonCompleted to 'Yes'.
+         7. If 'Form of Authtication' is 'ID Verification' set VerificationCompleted to 'Yes' 
+ The JSON format should be:
         [JSON]
-               {
-                  'PersonID': '12345',
-                  'ActivityRelatedTo' : '<activity related to>',
-                  'FormOfAuthentication' : '<form of authentication>',
-                  'PhoneNumber' : '<phone number>',
-                  'VerificationsCompleted' : <verifications completed>
-               }
+              {
+                 'PersonID': '12345',
+                 'ActivityRelatedTo' : '<activity related to>',
+                 'FormOfAuthentication' : '<form of authentication>',
+                 'PhoneNumber' : '<phone number>',
+                 'RefIdFoundNineOrMore' : '<Yes>',
+                 'PassFound' : '<No>',
+                 'VerificationsCompleted' : '<verification completed>'
+              }
         [JSON END]
 
         [Examples for JSON Output]
@@ -36,6 +45,8 @@ namespace api_process_runner_api.Util
                 'ActivityRelatedTo' : 'Inbound Call',
                 'FormOfAuthentication' : 'KBA',
                 'PhoneNumber' : '5555555555',
+                'RefIdFoundNineOrMore' : 'Yes',
+                'PassFound' : 'Yes',
                 'VerificationsCompleted': 'Yes'
              }
 
@@ -44,6 +55,8 @@ namespace api_process_runner_api.Util
                 'ActivityRelatedto' : 'Inbound Call',
                 'FormOfAuthentication' : 'ID Verfication',
                 'PhoneNumber' : 'no phone number',
+                'RefIdFoundNineOrMore' : 'No',
+                'PassFound' : 'No',
                 'VerificationsCompleted': 'Yes'
              }
 
@@ -52,6 +65,8 @@ namespace api_process_runner_api.Util
                 'ActivityRelatedto' : 'Inbound Call',
                 'FormOfAuthentication' : 'Low Risk',
                 'PhoneNumber' : '5555555555',
+                'RefIdFoundNineOrMore' : 'No',
+                'PassFound' : 'No',
                 'VerificationsCompleted': 'No'
              }
  
@@ -127,7 +142,7 @@ namespace api_process_runner_api.Util
                   'AddressUpdateFrom':'6608 zW 124TH ST  OKLAHOMA CITY',
                   'AddressUpdateTo':'205 qfGzfLlf fVE  EVERGREEN AL'
         }
-         {
+        {
                   'PersonID': '12345',
                   'CallerAuthenticated': 'Yes',
                   'FormOfAuthentication' : 'ID Verification',
@@ -163,6 +178,9 @@ namespace api_process_runner_api.Util
                 Console.WriteLine("SK ,- CheckVerificationIntent");
                 var response = await kernel.InvokePromptAsync(_promptVerificationConclusion, arguments2);
                 var metadata = response.Metadata;
+                Console.WriteLine($@"Verificaiton Conclusion:{personid}");
+                Console.WriteLine(response);
+                Console.WriteLine("----------------------");
                 if (metadata != null && metadata.ContainsKey("Usage"))
                 {
                     var usage = (CompletionsUsage?)metadata["Usage"];
